@@ -1,8 +1,7 @@
 import os
-from copy import deepcopy
-from dataclasses import dataclass, asdict, fields
 import sqlite3
-from typing import Iterable, Optional
+from dataclasses import dataclass, fields
+from typing import Optional, List
 
 
 @dataclass
@@ -81,7 +80,7 @@ class Database:
         )
         self._connection.commit()
 
-    def get_books(self, read=None) -> Iterable[Book]:
+    def get_books(self, read=None) -> List[Book]:
         query = "SELECT isbn, title, id FROM Book"
         params = []
 
@@ -90,8 +89,7 @@ class Database:
             params.append(read)
 
         self._cursor.execute(query, tuple(params))
-        for row in self._cursor:
-            yield Book(*row)
+        return [Book(*row) for row in self._cursor.fetchall()]
 
     def get_item(self, item):
         if isinstance(item, Book):
