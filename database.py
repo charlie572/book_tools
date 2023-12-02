@@ -1,13 +1,14 @@
 import os
 from dataclasses import dataclass
 import sqlite3
-from typing import Iterable
+from typing import Iterable, Optional
 
 
 @dataclass
 class Book:
     isbn: str
     title: str
+    id: Optional[int] = None
 
 
 class Database:
@@ -23,7 +24,8 @@ class Database:
         self._cursor.execute(
             """
             CREATE TABLE Book (
-                isbn TEXT PRIMARY KEY,
+                id INTEGER PRIMARY KEY,
+                isbn TEXT,
                 title TEXT
             )
             """
@@ -54,7 +56,7 @@ class Database:
     def get_books(self) -> Iterable[Book]:
         self._cursor.execute(
             """
-            SELECT isbn, title FROM Book
+            SELECT isbn, title, id FROM Book
             """
         )
         for row in self._cursor:
@@ -63,8 +65,6 @@ class Database:
 
 def main():
     database = Database("database.db")
-    database.add_book(Book("123", "Book 1"))
-    database.add_book(Book("456", "Book 2"))
     for book in database.get_books():
         print(book)
 
