@@ -1,15 +1,22 @@
 import os
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import dataclass, asdict, fields
 import sqlite3
 from typing import Iterable, Optional
 
 
 @dataclass
 class Book:
-    isbn: str
-    title: str
+    isbn: Optional[str] = None
+    title: Optional[str] = None
     id: Optional[int] = None
-    read: bool = False
+    read: Optional[bool] = False
+
+
+@dataclass
+class LibrarySystem:
+    name: Optional[str] = None
+    id: Optional[int] = None
 
 
 class Database:
@@ -29,6 +36,25 @@ class Database:
                 isbn TEXT,
                 title TEXT,
                 read BOOLEAN
+            )
+            """
+        )
+        self._cursor.execute(
+            """
+            CREATE TABLE LibrarySystem (
+                id INTEGER PRIMARY KEY,
+                name TEXT
+            )
+            """
+        )
+        self._cursor.execute(
+            """
+            CREATE TABLE LibraryBook (
+                id INTEGER PRIMARY KEY,
+                library INTEGER,
+                book INTEGER,
+                FOREIGN KEY (library) REFERENCES Library(id),
+                FOREIGN KEY (book) REFERENCES Book(id)
             )
             """
         )
@@ -57,21 +83,108 @@ class Database:
 
     def get_books(self, read=None) -> Iterable[Book]:
         query = "SELECT isbn, title, id FROM Book"
-        params = tuple()
+        params = []
 
         if read is not None:
             query += " WHERE read = ?"
-            params = *params, read
+            params.append(read)
 
-        self._cursor.execute(query, params)
+        self._cursor.execute(query, tuple(params))
         for row in self._cursor:
             yield Book(*row)
+
+    def get_item(self, item):
+        if isinstance(item, Book):
+            table_name = "Book"
+        elif isinstance(item, LibrarySystem):
+            table_name = "LibrarySystem"
+        else:
+            raise TypeError
+
+        item_fields = [f.name for f in fields(item)]
+
+        params_query = []
+        params = []
+        for field in item_fields:
+            value = getattr(item, field)
+            if value is None:
+                continue
+
+            params_query.append(f"{field} = ?")
+            params.append(value)
+
+        query = f"""
+            SELECT {', '.join(item_fields)} 
+            FROM {table_name} 
+            WHERE {' AND '.join(params_query)}
+        """
+
+        self._cursor.execute(query, params)
+        rows = self._cursor.fetchall()
+
+        if len(rows) == 0:
+            raise RuntimeError("Item not found.")
+        if len(rows) > 1:
+            raise RuntimeError("Query satisfies more than one item.")
+
+        row, = rows
+        for field, value in zip(item_fields, row):
+            setattr(item, field, value)
+
+    def get_items(self):
+        # TODO:
+        raise NotImplemented
+
+    def check_item_exists(self):
+        # TODO:
+        raise NotImplemented
+
+    def add_library_book(
+        self,
+        library: LibrarySystem,
+        book: Book,
+    ):
+        # get ids
+        if library.id is None:
+            self.get_item(library)
+        if book.id is None:
+            self.get_item(book)
+
+        self._cursor.execute(
+            """
+            INSERT INTO LibraryBook (library, book)
+            VALUES (?, ?)
+            """,
+            (library.id, book.id),
+        )
+
+    def add_library(self, library: LibrarySystem):
+        # check library doesn't already exist
+        self._cursor.execute(
+            """
+            SELECT name FROM LibrarySystem WHERE name = ?
+            """,
+            (library.name,)
+        )
+        if len(self._cursor.fetchall()) > 0:
+            return
+
+        # add library
+        self._cursor.execute(
+            """
+            INSERT INTO LibrarySystem (name)
+            VALUES (?)
+            """,
+            (library.name,)
+        )
+        self._connection.commit()
 
 
 def main():
     database = Database("database.db")
-    for book in database.get_books(read=True):
-        print(book)
+    library = LibrarySystem("Nottingham Libraries")
+    database.add_library(library)
+    database.add_library_book(library, Book(title="Zami: A New Spelling of My Name"))
 
 
 if __name__ == "__main__":
