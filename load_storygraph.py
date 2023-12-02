@@ -28,7 +28,11 @@ def main():
 
     reader = csv.DictReader(args.storygraph_export_file)
     for row in reader:
-        book = Book(row["ISBN/UID"], row["Title"])
+        book = Book(
+            row["ISBN/UID"],
+            row["Title"],
+            read=row["Read Count"] != "0",
+        )
         database.add_book(book)
 
     args.storygraph_export_file.close()

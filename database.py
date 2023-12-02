@@ -9,6 +9,7 @@ class Book:
     isbn: str
     title: str
     id: Optional[int] = None
+    read: bool = False
 
 
 class Database:
@@ -26,7 +27,8 @@ class Database:
             CREATE TABLE Book (
                 id INTEGER PRIMARY KEY,
                 isbn TEXT,
-                title TEXT
+                title TEXT,
+                read BOOLEAN
             )
             """
         )
@@ -46,26 +48,29 @@ class Database:
         # insert book
         self._cursor.execute(
             """
-            INSERT INTO Book (isbn, title)
-            VALUES (?, ?)
+            INSERT INTO Book (isbn, title, read)
+            VALUES (?, ?, ?)
             """,
-            (book.isbn, book.title)
+            (book.isbn, book.title, book.read)
         )
         self._connection.commit()
 
-    def get_books(self) -> Iterable[Book]:
-        self._cursor.execute(
-            """
-            SELECT isbn, title, id FROM Book
-            """
-        )
+    def get_books(self, read=None) -> Iterable[Book]:
+        query = "SELECT isbn, title, id FROM Book"
+        params = tuple()
+
+        if read is not None:
+            query += " WHERE read = ?"
+            params = *params, read
+
+        self._cursor.execute(query, params)
         for row in self._cursor:
             yield Book(*row)
 
 
 def main():
     database = Database("database.db")
-    for book in database.get_books():
+    for book in database.get_books(read=True):
         print(book)
 
 
