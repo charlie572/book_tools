@@ -155,8 +155,9 @@ class Database:
             """,
             (library.id, book.id),
         )
+        self._connection.commit()
 
-    def add_library(self, library: LibrarySystem):
+    def add_library_system(self, library: LibrarySystem):
         # check library doesn't already exist
         self._cursor.execute(
             """
@@ -177,12 +178,28 @@ class Database:
         )
         self._connection.commit()
 
+    def get_books_for_library_system(self, library: LibrarySystem):
+        if library.id is None:
+            self.get_item(library)
+
+        self._cursor.execute(
+            """
+            SELECT Book.isbn, Book.title, Book.id, Book.read
+            FROM LibraryBook
+            INNER JOIN Book ON Book.id = LibraryBook.book
+            WHERE LibraryBook.library = ?
+            """,
+            (library.id,),
+        )
+
+        return [Book(*row) for row in self._cursor.fetchall()]
+
 
 def main():
     database = Database("database.db")
-    library = LibrarySystem("Nottingham Libraries")
-    database.add_library(library)
-    database.add_library_book(library, Book(title="Zami: A New Spelling of My Name"))
+    library = LibrarySystem("Nottingham City Libraries")
+    for book in database.get_books_for_library_system(library):
+        print(book)
 
 
 if __name__ == "__main__":
