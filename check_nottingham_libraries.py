@@ -1,9 +1,11 @@
 import argparse
 import asyncio
+from typing import Optional
 
 import aiohttp
 from bs4 import BeautifulSoup
 from Levenshtein import distance
+from yarl import URL
 
 from database import Book, Database, LibrarySystem
 
@@ -41,7 +43,16 @@ def find_book_in_search_results(results_div, book_title):
     return None
 
 
-async def get_book(book: Book, session: aiohttp.ClientSession):
+async def get_book(
+    book: Book,
+    session: aiohttp.ClientSession,
+) -> Optional[URL]:
+    """Search Nottingham Libraries for the book
+
+    :return: If the book is found, a URL to the
+    search results or the book is returned. Else,
+    None is returned.
+    """
     url = f"https://emlib.ent.sirsidynix.net.uk/client/en_GB/nottcity/search/results"
     params = {
         "qu": book.title
@@ -54,18 +65,23 @@ async def get_book(book: Book, session: aiohttp.ClientSession):
 
         soup = BeautifulSoup(content, "html.parser")
 
+        # If there is only one search result, we are redirected to the page for
+        # the book, instead of a search results page. Check the page title to
+        # see if this has happened.
+        title = soup.find("title").text
+        if not title.startswith("Search Results"):
+            return response.url
+
+        # Find the div containing the search results.
         results_div = soup.find("div", {"id": "results_wrapper"})
         if results_div is None:
-            title = soup.find("title").text
-            if not title.startswith("Search Results"):
-                return response.url
-            else:
-                return None
+            return None
 
+        # Check if the book is in the search results.
         if find_book_in_search_results(results_div, book.title):
             return response.url
-        else:
-            return None
+
+        return None
 
 
 async def main():
