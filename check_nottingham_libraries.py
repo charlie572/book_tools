@@ -12,17 +12,6 @@ from database import Book, Database, LibrarySystem
 library = LibrarySystem("Nottingham City Libraries")
 
 
-async def add_book_to_database(
-    book: Book, database: Database, session: aiohttp.ClientSession
-):
-    url = await get_book(book, session)
-    if url is None:
-        return None
-
-    database.add_library_book(library, book)
-    return url
-
-
 def check_titles(title_1, title_2):
     return distance(title_1.lower(), title_2.lower()) < 10
 
@@ -59,9 +48,6 @@ async def get_book(
     }
     async with session.get(url=url, params=params) as response:
         content = await response.read()
-
-        with open(book.title + ".html", "w") as f:
-            f.write(content.decode())
 
         soup = BeautifulSoup(content, "html.parser")
 
@@ -102,16 +88,24 @@ async def main():
     database = Database(args.database)
     database.add_library_system(library)
 
+    books = database.get_books()[:10]
+
     async with aiohttp.ClientSession() as session:
         tasks = []
-        books = database.get_books()[:10]
         for book in books:
             task = asyncio.ensure_future(get_book(book, session))
             tasks.append(task)
 
         urls = await asyncio.gather(*tasks)
+
+        # print output
         for url, book in zip(urls, books):
             print(book.title, url)
+
+    # update database
+    for url, book in zip(urls, books):
+        if url is not None:
+            database.add_library_book(library, book)
 
 
 if __name__ == "__main__":
