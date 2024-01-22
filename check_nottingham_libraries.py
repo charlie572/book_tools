@@ -105,6 +105,7 @@ async def main():
     # update database
     for url, book in zip(urls, books):
         if url is not None:
+            database.add_book(book)
             database.add_library_book(library, book)
 
 

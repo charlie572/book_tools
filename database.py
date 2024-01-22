@@ -63,9 +63,9 @@ class Database:
         # check book doesn't already exist
         self._cursor.execute(
             """
-            SELECT isbn FROM Book WHERE isbn = ?
+            SELECT isbn FROM Book WHERE isbn = ? OR title = ?
             """,
-            (book.isbn,)
+            (book.isbn, book.title)
         )
         if len(self._cursor.fetchall()) > 0:
             return
@@ -133,9 +133,36 @@ class Database:
         # TODO:
         raise NotImplemented
 
-    def check_item_exists(self):
-        # TODO:
-        raise NotImplemented
+    def check_item_exists(self, item):
+        if isinstance(item, Book):
+            table_name = "Book"
+        elif isinstance(item, LibrarySystem):
+            table_name = "LibrarySystem"
+        else:
+            raise TypeError
+
+        item_fields = [f.name for f in fields(item)]
+
+        params_query = []
+        params = []
+        for field in item_fields:
+            value = getattr(item, field)
+            if value is None:
+                continue
+
+            params_query.append(f"{field} = ?")
+            params.append(value)
+
+        query = f"""
+            SELECT {', '.join(item_fields)} 
+            FROM {table_name} 
+            WHERE {' AND '.join(params_query)}
+        """
+
+        self._cursor.execute(query, params)
+        rows = self._cursor.fetchall()
+
+        return len(rows) > 0
 
     def add_library_book(
         self,
@@ -147,6 +174,16 @@ class Database:
             self.get_item(library)
         if book.id is None:
             self.get_item(book)
+
+        self._cursor.execute(
+            """
+            SELECT * FROM LibraryBook
+            WHERE library = ? AND book = ?
+            """,
+            (library.id, book.id),
+        )
+        if self._cursor.fetchone() is not None:
+            return
 
         self._cursor.execute(
             """
