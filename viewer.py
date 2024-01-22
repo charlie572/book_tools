@@ -3,6 +3,32 @@ import PySimpleGUI as sg
 from database import Database
 
 
+class FilterTable(sg.Table):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.filters = [None] * len(self.ColumnHeadings)
+
+    def filter(self, col: int):
+        # prompt user for desired value
+        column_name = self.ColumnHeadings[col]
+        value = sg.popup_get_text(f"Filter {column_name}: ")
+
+        # update table
+        table_data = self.Values
+        new_table_data = []
+        for row in table_data:
+            if row[col] == value:
+                new_table_data.append(row)
+
+        self.update(values=new_table_data)
+
+    def process_event(self, event):
+        if event[:2] == (0, "+CLICKED+"):
+            _, _, (row, col) = event
+            if row == -1:
+                self.filter(col)
+
+
 def create_table(database: Database):
     # load from database
     book_data = []
@@ -20,7 +46,7 @@ def create_table(database: Database):
     library_names = [library.name for library in database.get_libraries()]
 
     # create table
-    table = sg.Table(
+    table = FilterTable(
         book_data,
         headings=["Title", "Read"] + library_names,
         enable_click_events=True,
@@ -29,23 +55,10 @@ def create_table(database: Database):
     return table
 
 
-def filter_table(table: sg.Table, col: int):
-    # prompt user for desired value
-    column_name = table.ColumnHeadings[col]
-    value = sg.popup_get_text(f"Filter {column_name}: ")
-
-    # update table
-    table_data = table.Values
-    new_table_data = []
-    for row in table_data:
-        if row[col] == value:
-            new_table_data.append(row)
-
-    table.update(values=new_table_data)
-
-
 def main():
-    # TODO: add filtering columns
+    # TODO: subclass Table
+    # TODO: display filters
+    # TODO: clear filters
     # TODO: add searching for books
     # TODO: add tags to books
 
@@ -66,12 +79,10 @@ def main():
     # main loop
     while True:
         event, values = window.read()
-        if event == sg.WIN_CLOSED or event == "Cancel":
+        if event == sg.WIN_CLOSED:
             break
-        elif event[:2] == (0, "+CLICKED+"):
-            _, _, (row, col) = event
-            if row == -1:
-                filter_table(table, col)
+
+        table.process_event(event)
 
     window.close()
 
