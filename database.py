@@ -231,6 +231,28 @@ class Database:
 
         return [Book(*row) for row in self._cursor.fetchall()]
 
+    def get_libraries(self):
+        self._cursor.execute(
+            """
+            SELECT id, name FROM LibrarySystem
+            """
+        )
+        return [
+            LibrarySystem(name, id_)
+            for id_, name in self._cursor.fetchall()
+        ]
+
+    def check_book_in_library(self, book: Book, library: LibrarySystem):
+        self._cursor.execute(
+            """
+            SELECT *
+            FROM LibraryBook
+            WHERE book = ? AND library = ?
+            """,
+            (book.id, library.id),
+        )
+        return len(self._cursor.fetchall()) > 0
+
 
 def main():
     database = Database("database.db")
