@@ -92,9 +92,8 @@ def create_table(database: Database):
 
 
 def main():
-    # TODO: display filters
     # TODO: add searching for books
-    # TODO: add tags to books
+    # TODO: wrap text in table
 
     sg.theme("DarkTeal2")
 
