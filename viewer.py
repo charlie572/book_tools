@@ -85,6 +85,7 @@ def create_table(database: Database):
         book_data,
         headings=["Title", "Read", "Tags"] + library_names,
         enable_click_events=True,
+        size=(800, 600)
     )
 
     return table
@@ -107,6 +108,7 @@ def main():
     window = sg.Window(
         "Books",
         layout,
+        size=(800, 600)
     )
 
     # main loop
