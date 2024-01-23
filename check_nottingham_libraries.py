@@ -83,6 +83,8 @@ async def main():
         help="Path to database containing books to check.",
     )
 
+    # TODO: don't search for books twice
+
     args = parser.parse_args()
 
     database = Database(args.database)
