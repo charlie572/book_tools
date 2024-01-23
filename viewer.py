@@ -14,7 +14,10 @@ class FilterTable(sg.Table):
     def filter(self, col: int):
         # prompt user for desired value
         column_name = self.ColumnHeadings[col]
-        value = sg.popup_get_text(f"Filter {column_name}: ")
+        value = sg.popup_get_text(
+            f"Filter {column_name}: ",
+            default_text=self.filters[col] or "",
+        )
 
         if value is None:
             return
