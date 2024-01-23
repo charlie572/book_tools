@@ -71,6 +71,10 @@ async def main():
         for tag_list, book in zip(tags, books):
             print(book.title, tag_list)
 
+    # update database
+    for tag_list, book in zip(tags, books):
+        database.add_book_tags(book, tag_list)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

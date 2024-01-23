@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from dataclasses import dataclass, fields
-from typing import Optional, List
+from typing import Optional, List, Iterable
 
 
 @dataclass
@@ -14,6 +14,12 @@ class Book:
 
 @dataclass
 class LibrarySystem:
+    name: Optional[str] = None
+    id: Optional[int] = None
+
+
+@dataclass
+class Tag:
     name: Optional[str] = None
     id: Optional[int] = None
 
@@ -54,6 +60,25 @@ class Database:
                 book INTEGER,
                 FOREIGN KEY (library) REFERENCES Library(id),
                 FOREIGN KEY (book) REFERENCES Book(id)
+            )
+            """
+        )
+        self._cursor.execute(
+            """
+            CREATE TABLE Tag (
+                id INTEGER PRIMARY KEY,
+                name TEXT
+            )
+            """
+        )
+        self._cursor.execute(
+            """
+            CREATE TABLE BookTag (
+                id INTEGER PRIMARY KEY,
+                book INTEGER,
+                tag INTEGER,
+                FOREIGN KEY (book) REFERENCES Book(id),
+                FOREIGN KEY (tag) REFERENCES Tag(id)
             )
             """
         )
@@ -253,12 +278,75 @@ class Database:
         )
         return len(self._cursor.fetchall()) > 0
 
+    def add_book_tags(self, book: Book, tags: Iterable[str]):
+        if book.id is None:
+            self.get_item(book)
+
+        # ignore existing tags
+        existing_book_tags = self.get_book_tags(book)
+        tags = [tag for tag in tags if tag not in existing_book_tags]
+
+        # add each tag
+        for tag in tags:
+            # check if tag exists
+            self._cursor.execute(
+                """
+                SELECT id
+                FROM Tag
+                WHERE name = ?
+                """,
+                (tag,),
+            )
+            tag_ids = self._cursor.fetchall()
+            if len(tag_ids) == 0:
+                # tag doesn't exist, so add it
+                self._cursor.execute(
+                    """INSERT INTO Tag(name) VALUES (?)""",
+                    (tag,),
+                )
+                tag_id = self._cursor.lastrowid
+            else:
+                # tag exists
+                tag_id, = tag_ids[0]
+
+            # check if tag is already added
+            self._cursor.execute(
+                """SELECT * FROM BookTag WHERE book = ? AND tag = ?""",
+                (book.id, tag_id),
+            )
+            if len(self._cursor.fetchall()) > 0:
+                continue
+
+            # add tag
+            self._cursor.execute(
+                """INSERT INTO BookTag(book, tag) VALUES (?, ?)""",
+                (book.id, tag_id),
+            )
+
+        self._connection.commit()
+
+    def get_book_tags(self, book: Book):
+        if book.id is None:
+            self.get_item(book)
+
+        self._cursor.execute(
+            """
+            SELECT Tag.name
+            FROM Book
+            INNER JOIN BookTag ON (Book.id = BookTag.book)
+            INNER JOIN Tag ON (BookTag.tag = Tag.id)
+            WHERE Book.id = ?
+            """,
+            (book.id,),
+        )
+
+        return [tag_name for (tag_name,) in self._cursor.fetchall()]
+
 
 def main():
     database = Database("database.db")
-    library = LibrarySystem("Nottingham City Libraries")
-    for book in database.get_books_for_library_system(library):
-        print(book)
+    for book in database.get_books():
+        print(book, database.get_book_tags(book))
 
 
 if __name__ == "__main__":
