@@ -10,6 +10,7 @@ class Book:
     title: Optional[str] = None
     id: Optional[int] = None
     read: Optional[bool] = False
+    tags_searched: Optional[bool] = False
 
 
 @dataclass
@@ -40,7 +41,8 @@ class Database:
                 id INTEGER PRIMARY KEY,
                 isbn TEXT,
                 title TEXT,
-                read BOOLEAN
+                read BOOLEAN,
+                tags_searched BOOLEAN
             )
             """
         )
@@ -99,15 +101,30 @@ class Database:
         # insert book
         self._cursor.execute(
             """
-            INSERT INTO Book (isbn, title, read)
-            VALUES (?, ?, ?)
+            INSERT INTO Book (isbn, title, read, tags_searched)
+            VALUES (?, ?, ?, ?)
             """,
-            (book.isbn, book.title, book.read)
+            (book.isbn, book.title, book.read, book.tags_searched)
+        )
+        self._connection.commit()
+
+    def update_book(self, book: Book):
+        # get book id and check if it exists
+        self.get_item(book, only_check_id=True)
+
+        # update book
+        self._cursor.execute(
+            """
+            UPDATE Book
+            SET isbn = ?, title = ?, read = ?, tags_searched = ?
+            WHERE id = ?
+            """,
+            (book.isbn, book.title, book.read, book.tags_searched, book.id),
         )
         self._connection.commit()
 
     def get_books(self, read=None) -> List[Book]:
-        query = "SELECT isbn, title, id FROM Book"
+        query = "SELECT isbn, title, id, read, tags_searched FROM Book"
         params = []
 
         if read is not None:
@@ -117,7 +134,7 @@ class Database:
         self._cursor.execute(query, tuple(params))
         return [Book(*row) for row in self._cursor.fetchall()]
 
-    def get_item(self, item):
+    def get_item(self, item, only_check_id = False):
         if isinstance(item, Book):
             table_name = "Book"
         elif isinstance(item, LibrarySystem):
@@ -125,7 +142,10 @@ class Database:
         else:
             raise TypeError
 
-        item_fields = [f.name for f in fields(item)]
+        if only_check_id:
+            item_fields = ["id"]
+        else:
+            item_fields = [f.name for f in fields(item)]
 
         params_query = []
         params = []
@@ -217,7 +237,7 @@ class Database:
                 """
                 UPDATE LibraryBook 
                 SET present = ? 
-                WHERE library = ? AND book =?
+                WHERE library = ? AND book = ?
                 """,
                 (library.id, book.id, present),
             )

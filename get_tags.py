@@ -57,9 +57,10 @@ async def main():
 
     database = Database(args.database)
 
-    books = database.get_books()
+    books = database.get_books()[:10]
 
-    # TODO: don't search for tags twice
+    # don't search for tags twice
+    books = [book for book in books if not book.tags_searched]
 
     async with aiohttp.ClientSession() as session:
         tasks = []
@@ -76,6 +77,9 @@ async def main():
     # update database
     for tag_list, book in zip(tags, books):
         database.add_book_tags(book, tag_list)
+
+        book.tags_searched = True
+        database.update_book(book)
 
 
 if __name__ == "__main__":
