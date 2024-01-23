@@ -7,6 +7,23 @@ from bs4 import BeautifulSoup
 from database import Database, Book
 
 
+async def process_book(
+    book: Book,
+    database: Database,
+    session: aiohttp.ClientSession,
+):
+    tags = await get_tags(book, session)
+
+    database.add_book_tags(book, tags)
+
+    book.tags_searched = True
+    database.update_book(book)
+
+    print(book.title, tags)
+
+    return tags
+
+
 async def get_tags(book: Book, session: aiohttp.ClientSession):
     url = "https://app.thestorygraph.com/browse"
     params = {
@@ -57,7 +74,7 @@ async def main():
 
     database = Database(args.database)
 
-    books = database.get_books()[:10]
+    books = database.get_books()
 
     # don't search for tags twice
     books = [book for book in books if not book.tags_searched]
@@ -65,21 +82,10 @@ async def main():
     async with aiohttp.ClientSession() as session:
         tasks = []
         for book in books:
-            task = asyncio.ensure_future(get_tags(book, session))
+            task = asyncio.ensure_future(process_book(book, database, session))
             tasks.append(task)
 
-        tags = await asyncio.gather(*tasks)
-
-        # print output
-        for tag_list, book in zip(tags, books):
-            print(book.title, tag_list)
-
-    # update database
-    for tag_list, book in zip(tags, books):
-        database.add_book_tags(book, tag_list)
-
-        book.tags_searched = True
-        database.update_book(book)
+        await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":
