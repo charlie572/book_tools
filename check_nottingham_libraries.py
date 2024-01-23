@@ -83,14 +83,19 @@ async def main():
         help="Path to database containing books to check.",
     )
 
-    # TODO: don't search for books twice
-
     args = parser.parse_args()
 
     database = Database(args.database)
     database.add_library_system(library)
 
     books = database.get_books()
+
+    # only check books that haven't been checked yet
+    books = [
+        book
+        for book in books
+        if database.check_book_in_library(book, library) is None
+    ]
 
     async with aiohttp.ClientSession() as session:
         tasks = []
@@ -106,9 +111,7 @@ async def main():
 
     # update database
     for url, book in zip(urls, books):
-        if url is not None:
-            database.add_book(book)
-            database.add_library_book(library, book)
+        database.add_library_book(library, book, url is not None)
 
 
 if __name__ == "__main__":

@@ -58,6 +58,7 @@ class Database:
                 id INTEGER PRIMARY KEY,
                 library INTEGER,
                 book INTEGER,
+                present BOOLEAN,
                 FOREIGN KEY (library) REFERENCES Library(id),
                 FOREIGN KEY (book) REFERENCES Book(id)
             )
@@ -193,6 +194,7 @@ class Database:
         self,
         library: LibrarySystem,
         book: Book,
+        present: bool,
     ):
         # get ids
         if library.id is None:
@@ -200,6 +202,7 @@ class Database:
         if book.id is None:
             self.get_item(book)
 
+        # check if row already exists
         self._cursor.execute(
             """
             SELECT * FROM LibraryBook
@@ -207,15 +210,27 @@ class Database:
             """,
             (library.id, book.id),
         )
+
         if self._cursor.fetchone() is not None:
+            # row already exists, so set present = True
+            self._cursor.execute(
+                """
+                UPDATE LibraryBook 
+                SET present = ? 
+                WHERE library = ? AND book =?
+                """,
+                (library.id, book.id, present),
+            )
+            self._connection.commit()
             return
 
+        # add row
         self._cursor.execute(
             """
-            INSERT INTO LibraryBook (library, book)
-            VALUES (?, ?)
+            INSERT INTO LibraryBook (library, book, present)
+            VALUES (?, ?, ?)
             """,
-            (library.id, book.id),
+            (library.id, book.id, present),
         )
         self._connection.commit()
 
@@ -267,16 +282,29 @@ class Database:
             for id_, name in self._cursor.fetchall()
         ]
 
-    def check_book_in_library(self, book: Book, library: LibrarySystem):
+    def check_book_in_library(
+            self, book: Book, library: LibrarySystem
+    ) -> Optional[bool]:
+        if book.id is None:
+            self.get_item(book)
+        if library.id is None:
+            self.get_item(library)
+
         self._cursor.execute(
             """
-            SELECT *
+            SELECT present
             FROM LibraryBook
             WHERE book = ? AND library = ?
             """,
             (book.id, library.id),
         )
-        return len(self._cursor.fetchall()) > 0
+
+        query_result = self._cursor.fetchall()
+        if len(query_result) == 0:
+            return None
+        else:
+            present, = query_result[0]
+            return present
 
     def add_book_tags(self, book: Book, tags: Iterable[str]):
         if book.id is None:

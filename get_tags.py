@@ -59,6 +59,8 @@ async def main():
 
     books = database.get_books()
 
+    # TODO: don't search for tags twice
+
     async with aiohttp.ClientSession() as session:
         tasks = []
         for book in books:
