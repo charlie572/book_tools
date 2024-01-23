@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import PySimpleGUI as sg
 
 from database import Database
@@ -7,17 +9,31 @@ class FilterTable(sg.Table):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.filters = [None] * len(self.ColumnHeadings)
+        self.original_values = self.Values.copy()
 
     def filter(self, col: int):
         # prompt user for desired value
         column_name = self.ColumnHeadings[col]
         value = sg.popup_get_text(f"Filter {column_name}: ")
 
-        # update table
-        table_data = self.Values
+        if value is None:
+            return
+
+        # update filters
+        self.filters[col] = value
+        if self.filters[col] == "":
+            # clear filter
+            self.filters[col] = None
+
+        self.apply_filters()
+
+    def apply_filters(self):
         new_table_data = []
-        for row in table_data:
-            if row[col] == value:
+        for row in self.original_values:
+            for filtered_value, value in zip(self.filters, row):
+                if filtered_value is not None and value != filtered_value:
+                    break
+            else:
                 new_table_data.append(row)
 
         self.update(values=new_table_data)
@@ -56,9 +72,7 @@ def create_table(database: Database):
 
 
 def main():
-    # TODO: subclass Table
     # TODO: display filters
-    # TODO: clear filters
     # TODO: add searching for books
     # TODO: add tags to books
 
