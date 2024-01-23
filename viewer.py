@@ -52,6 +52,7 @@ def create_table(database: Database):
         _book_data = [
             book.title,
             "yes" if book.read else "no",
+            ", ".join(database.get_book_tags(book)),
         ]
         for library in database.get_libraries():
             present = database.check_book_in_library(book, library)
@@ -64,7 +65,7 @@ def create_table(database: Database):
     # create table
     table = FilterTable(
         book_data,
-        headings=["Title", "Read"] + library_names,
+        headings=["Title", "Read", "Tags"] + library_names,
         enable_click_events=True,
     )
 
