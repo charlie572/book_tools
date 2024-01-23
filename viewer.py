@@ -30,8 +30,23 @@ class FilterTable(sg.Table):
     def apply_filters(self):
         new_table_data = []
         for row in self.original_values:
-            for filtered_value, value in zip(self.filters, row):
-                if filtered_value is not None and value != filtered_value:
+            for column, filtered_value, value in zip(
+                self.ColumnHeadings, self.filters, row
+            ):
+                if filtered_value is None:
+                    continue
+
+                if column == "Tags":
+                    # tag all filter tags are present
+                    row_tags = value.split(", ")
+                    filter_tags = filtered_value.split(", ")
+                    if len(set(filter_tags).difference(row_tags)) > 0:
+                        break
+                    else:
+                        continue
+
+                # check filter value is equal to row value
+                if value != filtered_value:
                     break
             else:
                 new_table_data.append(row)
