@@ -32,6 +32,17 @@ def find_book_in_search_results(results_div, book_title):
     return None
 
 
+async def process_book(
+    book: Book,
+    database: Database,
+    session: aiohttp.ClientSession,
+) -> Optional[URL]:
+    url = await get_book(book, session)
+    database.add_library_book(library, book, url is not None)
+    print(book.title, url)
+    return url
+
+
 async def get_book(
     book: Book,
     session: aiohttp.ClientSession,
@@ -100,18 +111,10 @@ async def main():
     async with aiohttp.ClientSession() as session:
         tasks = []
         for book in books:
-            task = asyncio.ensure_future(get_book(book, session))
+            task = asyncio.ensure_future(process_book(book, database, session))
             tasks.append(task)
 
-        urls = await asyncio.gather(*tasks)
-
-        # print output
-        for url, book in zip(urls, books):
-            print(book.title, url)
-
-    # update database
-    for url, book in zip(urls, books):
-        database.add_library_book(library, book, url is not None)
+        await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":
