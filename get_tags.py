@@ -57,11 +57,11 @@ async def main():
 
     database = Database(args.database)
 
-    books = database.get_books()[:10]
+    books = database.get_books()
 
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for book in books[:10]:
+        for book in books:
             task = asyncio.ensure_future(get_tags(book, session))
             tasks.append(task)
 

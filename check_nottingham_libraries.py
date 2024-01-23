@@ -90,7 +90,7 @@ async def main():
     database = Database(args.database)
     database.add_library_system(library)
 
-    books = database.get_books()[:10]
+    books = database.get_books()
 
     async with aiohttp.ClientSession() as session:
         tasks = []
