@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import os
 from typing import Optional
 
 import aiohttp
@@ -86,7 +87,7 @@ async def main():
         "-d",
         "--database",
         type=str,
-        default="database.db",
+        default=os.path.join(os.path.dirname(__file__), "..", "database.db"),
         help="Path to database containing books to check.",
     )
 
