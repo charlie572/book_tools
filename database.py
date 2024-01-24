@@ -88,14 +88,7 @@ class Database:
         self._connection.commit()
 
     def add_book(self, book: Book):
-        # check book doesn't already exist
-        self._cursor.execute(
-            """
-            SELECT isbn FROM Book WHERE isbn = ? OR title = ?
-            """,
-            (book.isbn, book.title)
-        )
-        if len(self._cursor.fetchall()) > 0:
+        if self.book_exists(book):
             return
 
         # insert book
@@ -143,7 +136,7 @@ class Database:
             raise TypeError
 
         if only_check_id:
-            item_fields = ["id"]
+            item_fields = ["id", "isbn"]
         else:
             item_fields = [f.name for f in fields(item)]
 
@@ -389,6 +382,15 @@ class Database:
         )
 
         return [tag_name for (tag_name,) in self._cursor.fetchall()]
+
+    def book_exists(self, book: Book) -> bool:
+        self._cursor.execute(
+            """
+            SELECT isbn FROM Book WHERE isbn = ? OR title = ?
+            """,
+            (book.isbn, book.title)
+        )
+        return len(self._cursor.fetchall()) > 0
 
 
 def main():
