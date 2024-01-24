@@ -12,6 +12,7 @@ from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium.webdriver.firefox.options import Options
 from yarl import URL
 
+from check_libraries.common import check_titles
 from database import Book
 
 
@@ -24,18 +25,6 @@ def get_book_nottingham_university(
     search results or the book is returned. Else,
     None is returned.
     """
-    # url = "https://nusearch.nottingham.ac.uk/primo-explore/search"
-    # params = {
-    #     "query": f"any,contains,{book.title}",
-    #     # "tab": "44notuk_complete",
-    #     # "search_scope": "44NOTUK_COMPLETE",
-    #     # "vid": "44NOTUK",
-    #     # "offset": "0",
-    #     # "facet": "rtype,exclude,reviews,lk",
-    # }
-
-    # guest_api_url = "https://nusearch.nottingham.ac.uk/primo/v1/jwt/44NOTUK"
-
     root = os.path.dirname(__file__)
     config_path = os.path.join(root, "..", "config.ini")
 
@@ -46,11 +35,12 @@ def get_book_nottingham_university(
     options = Options()
     options.binary = FirefoxBinary(parser.get("firefox", "executable"))
     options.profile = FirefoxProfile(parser.get("firefox", "profile"))
-    # options.add_argument("--headless")
+    options.add_argument("--headless")
     driver = webdriver.Firefox(options=options)
 
     driver.implicitly_wait(10.0)
 
+    # open page
     url = "https://nusearch.nottingham.ac.uk/primo-explore/search"
     params = {
         "query": f"any,contains,{book.title}",
@@ -63,20 +53,33 @@ def get_book_nottingham_university(
     query_string = "?" + urlencode(params, quote_via=quote, safe=",")
     driver.get(url + query_string)
 
+    # get list of book title elements on the search results page
     search_results_div = driver.find_element(
         by=By.ID,
         value="mainResults",
     )
     book_titles = search_results_div.find_elements(by=By.CLASS_NAME, value="item-title")
-    print(book_titles)
-    for book_title in book_titles:
-        print(book_title, book_title.text)
 
+    # check titles
+    for book_title in book_titles:
+        # Check title. Sometimes the title is shown as "title / author", so check for
+        # this case as well.
+        candidate_titles = [book_title.text] + book_title.text.split("/")
+        if all((not check_titles(book.title, t) for t in candidate_titles)):
+            continue
+
+        # return url of book
+        link = book_title.find_element(by=By.TAG_NAME, value="a")
+        return link.get_attribute("href")
+
+    return None
 
 
 def main():
     book = Book(title="Cannery Row")
-    get_book_nottingham_university(book)
+    url = get_book_nottingham_university(book)
+
+    print(url)
 
 
 if __name__ == "__main__":

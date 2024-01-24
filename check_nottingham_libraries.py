@@ -4,16 +4,12 @@ from typing import Optional
 
 import aiohttp
 from bs4 import BeautifulSoup
-from Levenshtein import distance
 from yarl import URL
 
+from check_libraries.common import check_titles
 from database import Book, Database, LibrarySystem
 
 library = LibrarySystem("Nottingham City Libraries")
-
-
-def check_titles(title_1, title_2):
-    return distance(title_1.lower(), title_2.lower()) < 10
 
 
 def find_book_in_search_results(results_div, book_title):
