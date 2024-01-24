@@ -74,7 +74,15 @@ def create_table(database: Database):
         ]
         for library in database.get_libraries():
             present = database.check_book_in_library(book, library)
-            _book_data.append("yes" if present else "no")
+
+            if present is None:
+                value = ""
+            elif present:
+                value = "yes"
+            else:
+                value = "no"
+
+            _book_data.append(value)
 
         book_data.append(_book_data)
 
