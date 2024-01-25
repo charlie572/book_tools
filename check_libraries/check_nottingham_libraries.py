@@ -50,9 +50,13 @@ async def get_book(
     search results or the book is returned. Else,
     None is returned.
     """
+    search_term = book.title.lower().strip()
+    if search_term.startswith("the "):
+        search_term = search_term[4:]
+
     url = f"https://emlib.ent.sirsidynix.net.uk/client/en_GB/nottcity/search/results"
     params = {
-        "qu": book.title
+        "qu": search_term
     }
     async with session.get(url=url, params=params) as response:
         content = await response.read()
@@ -90,6 +94,12 @@ async def main():
         default=os.path.join(os.path.dirname(__file__), "..", "database.db"),
         help="Path to database containing books to check.",
     )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Search for all books, even if they have been searched before.",
+    )
 
     args = parser.parse_args()
 
@@ -98,12 +108,13 @@ async def main():
 
     books = database.get_books()
 
-    # only check books that haven't been checked yet
-    books = [
-        book
-        for book in books
-        if database.check_book_in_library(book, library) is None
-    ]
+    if not args.force:
+        # only check books that haven't been checked yet
+        books = [
+            book
+            for book in books
+            if database.check_book_in_library(book, library) is None
+        ]
 
     async with aiohttp.ClientSession() as session:
         tasks = []

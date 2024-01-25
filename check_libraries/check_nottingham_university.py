@@ -107,6 +107,12 @@ def main():
         default=10,
         help="Number of threads to use.",
     )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Search for all books, even if they have been searched before.",
+    )
 
     args = parser.parse_args()
 
@@ -132,12 +138,13 @@ def main():
     # get books from database
     books = database.get_books()
 
-    # only check books that haven't been checked yet
-    books = [
-        book
-        for book in books
-        if database.check_book_in_library(book, library) is None
-    ]
+    if not args.force:
+        # only check books that haven't been checked yet
+        books = [
+            book
+            for book in books
+            if database.check_book_in_library(book, library) is None
+        ]
 
     # initialise thread pool, and one selenium webdriver for each thread
 
