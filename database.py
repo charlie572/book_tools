@@ -392,6 +392,15 @@ class Database:
         )
         return len(self._cursor.fetchall()) > 0
 
+    def clear_library_books(self, library: LibrarySystem):
+        if library.id is None:
+            self.get_item(library)
+
+        self._cursor.execute(
+            """DELETE FROM LibraryBook WHERE library = ?""",
+            (library.id,),
+        )
+
 
 def main():
     database = Database("database.db")

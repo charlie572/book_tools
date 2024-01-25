@@ -113,6 +113,12 @@ def main():
         action="store_true",
         help="Search for all books, even if they have been searched before.",
     )
+    parser.add_argument(
+        "-c",
+        "--clear",
+        action="store_true",
+        help="Clear database of entries for this library before starting.",
+    )
 
     args = parser.parse_args()
 
@@ -134,6 +140,9 @@ def main():
     # open database
     database = Database(args.database)
     database.add_library_system(library)
+
+    if args.clear:
+        database.clear_library_books(library)
 
     # get books from database
     books = database.get_books()
