@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 import PySimpleGUI as sg
+from Levenshtein import distance
 
 from database import Database
 
@@ -40,10 +41,16 @@ class FilterTable(sg.Table):
                     continue
 
                 if column == "Tags":
-                    # tag all filter tags are present
+                    # check all filter tags are present
                     row_tags = value.split(", ")
                     filter_tags = filtered_value.split(", ")
                     if len(set(filter_tags).difference(row_tags)) > 0:
+                        break
+                    else:
+                        continue
+
+                if column == "Title":
+                    if filtered_value.lower() not in value.lower():
                         break
                     else:
                         continue
@@ -100,7 +107,6 @@ def create_table(database: Database):
 
 
 def main():
-    # TODO: add searching for books
     # TODO: wrap text in table
 
     sg.theme("DarkTeal2")
