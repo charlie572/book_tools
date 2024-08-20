@@ -20,6 +20,12 @@ class LibrarySystem:
 
 
 @dataclass
+class Shop:
+    name: Optional[str] = None
+    id: Optional[int] = None
+
+
+@dataclass
 class Tag:
     name: Optional[str] = None
     id: Optional[int] = None
@@ -56,12 +62,33 @@ class Database:
         )
         self._cursor.execute(
             """
+            CREATE TABLE Shop (
+                id INTEGER PRIMARY KEY,
+                name TEXT
+            )
+            """
+        )
+        self._cursor.execute(
+            """
             CREATE TABLE LibraryBook (
                 id INTEGER PRIMARY KEY,
                 library INTEGER,
                 book INTEGER,
                 present BOOLEAN,
                 FOREIGN KEY (library) REFERENCES Library(id),
+                FOREIGN KEY (book) REFERENCES Book(id)
+            )
+            """
+        )
+        self._cursor.execute(
+            """
+            CREATE TABLE ShopBook (
+                id INTEGER PRIMARY KEY,
+                shop INTEGER,
+                book INTEGER,
+                present BOOLEAN,
+                price FLOAT,
+                FOREIGN KEY (shop) REFERENCES Shop(id),
                 FOREIGN KEY (book) REFERENCES Book(id)
             )
             """
@@ -132,6 +159,8 @@ class Database:
             table_name = "Book"
         elif isinstance(item, LibrarySystem):
             table_name = "LibrarySystem"
+        elif isinstance(item, Shop):
+            table_name = "Shop"
         else:
             raise TypeError
 
@@ -142,19 +171,21 @@ class Database:
 
         params_query = []
         params = []
+        present_field_names = []
         for field in item_fields:
             value = getattr(item, field)
             if value is None:
                 continue
 
+            present_field_names.append(field)
             params_query.append(f"{field} = ?")
             params.append(value)
 
-        query = f"""
-            SELECT {', '.join(item_fields)} 
-            FROM {table_name} 
-            WHERE {' AND '.join(params_query)}
-        """
+        query = (
+            f"SELECT {', '.join(present_field_names)}\n"
+            f"FROM {table_name}\n"
+            f"WHERE {' AND '.join(params_query)}"
+        )
 
         self._cursor.execute(query, params)
         rows = self._cursor.fetchall()
@@ -232,7 +263,7 @@ class Database:
                 SET present = ? 
                 WHERE library = ? AND book = ?
                 """,
-                (library.id, book.id, present),
+                (present, library.id, book.id),
             )
             self._connection.commit()
             return
@@ -265,6 +296,27 @@ class Database:
             VALUES (?)
             """,
             (library.name,)
+        )
+        self._connection.commit()
+
+    def add_shop(self, shop: Shop):
+        # check library doesn't already exist
+        self._cursor.execute(
+            """
+            SELECT name FROM Shop WHERE name = ?
+            """,
+            (shop.name,)
+        )
+        if len(self._cursor.fetchall()) > 0:
+            return
+
+        # add library
+        self._cursor.execute(
+            """
+            INSERT INTO Shop (name)
+            VALUES (?)
+            """,
+            (shop.name,)
         )
         self._connection.commit()
 
@@ -310,6 +362,30 @@ class Database:
             WHERE book = ? AND library = ?
             """,
             (book.id, library.id),
+        )
+
+        query_result = self._cursor.fetchall()
+        if len(query_result) == 0:
+            return None
+        else:
+            present, = query_result[0]
+            return present
+
+    def check_book_in_shop(
+        self, book: Book, shop: Shop
+    ) -> Optional[bool]:
+        if book.id is None:
+            self.get_item(book)
+        if shop.id is None:
+            self.get_item(shop)
+
+        self._cursor.execute(
+            """
+            SELECT present
+            FROM ShopBook
+            WHERE book = ? AND shop = ?
+            """,
+            (book.id, shop.id),
         )
 
         query_result = self._cursor.fetchall()
@@ -386,9 +462,9 @@ class Database:
     def book_exists(self, book: Book) -> bool:
         self._cursor.execute(
             """
-            SELECT isbn FROM Book WHERE isbn = ? OR title = ?
+            SELECT isbn FROM Book WHERE isbn = ?
             """,
-            (book.isbn, book.title)
+            (book.isbn,)
         )
         return len(self._cursor.fetchall()) > 0
 
@@ -400,6 +476,54 @@ class Database:
             """DELETE FROM LibraryBook WHERE library = ?""",
             (library.id,),
         )
+
+    def clear_shop_books(self, shop: Shop):
+        if shop.id is None:
+            self.get_item(shop)
+
+        self._cursor.execute(
+            """DELETE FROM ShopBook WHERE shop = ?""",
+            (shop.id,),
+        )
+
+    def add_book_in_shop(self, shop: Shop, book: Book, present: bool, price: Optional[float]):
+        # get ids
+        if shop.id is None:
+            self.get_item(shop)
+        if book.id is None:
+            self.get_item(book)
+
+        # check if row already exists
+        self._cursor.execute(
+            """
+            SELECT * FROM ShopBook
+            WHERE shop = ? AND book = ?
+            """,
+            (shop.id, book.id),
+        )
+
+        if self._cursor.fetchone() is not None:
+            # row already exists, so set present = True
+            self._cursor.execute(
+                """
+                UPDATE ShopBook 
+                SET present = ?, price = ?
+                WHERE shop = ? AND book = ?
+                """,
+                (present, price, shop.id, book.id),
+            )
+            self._connection.commit()
+            return
+
+        # add row
+        self._cursor.execute(
+            """
+            INSERT INTO ShopBook (shop, book, present, price)
+            VALUES (?, ?, ?, ?)
+            """,
+            (shop.id, book.id, present, price),
+        )
+        self._connection.commit()
 
 
 def main():
