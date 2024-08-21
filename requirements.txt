@@ -4,3 +4,4 @@ Levenshtein
 PySimpleGUI
 beautifulsoup4
 yarl
+selenium
