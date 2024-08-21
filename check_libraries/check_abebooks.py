@@ -34,11 +34,15 @@ async def get_book(
     search results or the book is returned, and
     the price. Else, (None, None) is returned.
     """
+    search_term = book.title.lower().strip()
+    if search_term.startswith("the "):
+        search_term = search_term[4:]
+
     url = f"https://www.abebooks.co.uk/servlet/SearchResults"
     params = {
         "cm_sp": "SearchF-_-home-_-Results",
-        "kn": book.isbn,
-        "ref_": "search_f_hp",
+        "ds": 20,
+        "kn": search_term,
         "sts": "t",
     }
     async with session.get(url=url, params=params) as response:
