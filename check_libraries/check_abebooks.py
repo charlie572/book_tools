@@ -100,7 +100,6 @@ async def main():
         database.clear_shop_books(shop)
 
     books = database.get_books()
-    books = books[:1]
 
     # if not args.force:
     #     # only check books that haven't been checked yet
@@ -110,7 +109,8 @@ async def main():
     #         if database.check_book_in_shop(book, shop) is None
     #     ]
 
-    async with aiohttp.ClientSession() as session:
+    connector = aiohttp.TCPConnector(limit=10)
+    async with aiohttp.ClientSession(connector=connector) as session:
         tasks = []
         for book in books:
             task = asyncio.ensure_future(process_book(book, database, session))
