@@ -42,7 +42,6 @@ async def get_book(
         "sts": "t",
     }
     async with session.get(url=url, params=params) as response:
-        print(response.url)
         content = await response.read()
 
         soup = BeautifulSoup(content, "html.parser")
@@ -58,7 +57,7 @@ async def get_book(
             return None, None
 
         # Find price.
-        price_p = book_li.find("p", {"class": "price"})
+        price_p = book_li.find("p", {"class": "item-price"})
         if price_p is None:
             return None, None
         price_text = price_p.text.split("£")[-1]
