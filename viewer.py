@@ -91,14 +91,19 @@ def create_table(database: Database):
 
             _book_data.append(value)
 
+        for shop in database.get_shops():
+            present, price = database.check_book_in_shop(book, shop)
+            _book_data.append(price or "")
+
         book_data.append(_book_data)
 
     library_names = [library.name for library in database.get_libraries()]
+    shop_names = [shop.name for shop in database.get_shops()]
 
     # create table
     table = FilterTable(
         book_data,
-        headings=["Title", "Read", "Tags"] + library_names,
+        headings=["Title", "Read", "Tags"] + library_names + shop_names,
         enable_click_events=True,
         size=(800, 600)
     )

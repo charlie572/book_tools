@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from dataclasses import dataclass, fields
-from typing import Optional, List, Iterable
+from typing import Optional, List, Iterable, Tuple
 
 
 @dataclass
@@ -171,18 +171,19 @@ class Database:
 
         params_query = []
         params = []
-        present_field_names = []
         for field in item_fields:
+            if not hasattr(item, field):
+                continue
+
             value = getattr(item, field)
             if value is None:
                 continue
 
-            present_field_names.append(field)
             params_query.append(f"{field} = ?")
             params.append(value)
 
         query = (
-            f"SELECT {', '.join(present_field_names)}\n"
+            f"SELECT {', '.join(item_fields)}\n"
             f"FROM {table_name}\n"
             f"WHERE {' AND '.join(params_query)}"
         )
@@ -347,6 +348,17 @@ class Database:
             for id_, name in self._cursor.fetchall()
         ]
 
+    def get_shops(self):
+        self._cursor.execute(
+            """
+            SELECT id, name FROM Shop
+            """
+        )
+        return [
+            Shop(name, id_)
+            for id_, name in self._cursor.fetchall()
+        ]
+
     def check_book_in_library(
             self, book: Book, library: LibrarySystem
     ) -> Optional[bool]:
@@ -373,7 +385,7 @@ class Database:
 
     def check_book_in_shop(
         self, book: Book, shop: Shop
-    ) -> Optional[bool]:
+    ) -> Tuple[Optional[bool], Optional[float]]:
         if book.id is None:
             self.get_item(book)
         if shop.id is None:
@@ -381,7 +393,7 @@ class Database:
 
         self._cursor.execute(
             """
-            SELECT present
+            SELECT present, price
             FROM ShopBook
             WHERE book = ? AND shop = ?
             """,
@@ -390,10 +402,10 @@ class Database:
 
         query_result = self._cursor.fetchall()
         if len(query_result) == 0:
-            return None
+            return None, None
         else:
-            present, = query_result[0]
-            return present
+            present, price = query_result[0]
+            return present, price
 
     def add_book_tags(self, book: Book, tags: Iterable[str]):
         if book.id is None:

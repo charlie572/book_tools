@@ -104,7 +104,7 @@ def main():
         "-n",
         "--num-workers",
         type=int,
-        default=10,
+        default=5,
         help="Number of threads to use.",
     )
     parser.add_argument(

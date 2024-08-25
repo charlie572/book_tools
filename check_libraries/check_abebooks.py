@@ -105,14 +105,16 @@ async def main():
 
     books = database.get_books()
 
-    # if not args.force:
-    #     # only check books that haven't been checked yet
-    #     books = [
-    #         book
-    #         for book in books
-    #         if database.check_book_in_shop(book, shop) is None
-    #     ]
+    if not args.force:
+        # only check books that haven't been checked yet
+        books = [
+            book
+            for book in books
+            if database.check_book_in_shop(book, shop)[0] is None
+        ]
 
+    # If you make too many requests, you get banned, so the number of threads has been limited to 10. I don't know how
+    # many more it still works with.
     connector = aiohttp.TCPConnector(limit=10)
     async with aiohttp.ClientSession(connector=connector) as session:
         tasks = []
