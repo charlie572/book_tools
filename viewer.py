@@ -97,6 +97,8 @@ def create_table(database: Database):
 
         book_data.append(_book_data)
 
+    book_data.sort(key=lambda x: x[-1] or 0)
+
     library_names = [library.name for library in database.get_libraries()]
     shop_names = [shop.name for shop in database.get_shops()]
 
