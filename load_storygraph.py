@@ -39,6 +39,9 @@ def main():
         else:
             database.add_book(book)
 
+        tags = [tag.strip() for tag in row["Tags"].split(",")]
+        database.add_book_tags(book, tags)
+
     args.storygraph_export_file.close()
 
 
