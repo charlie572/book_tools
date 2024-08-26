@@ -5,3 +5,5 @@ PySimpleGUI
 beautifulsoup4
 yarl
 selenium
+isbnlib
+ebaysdk
