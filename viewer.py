@@ -1,3 +1,4 @@
+import argparse
 from copy import deepcopy
 
 import PySimpleGUI as sg
@@ -114,11 +115,23 @@ def create_table(database: Database):
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        "load_from_txt",
+        description="Load storygraph data into the database."
+    )
+    parser.add_argument(
+        "database",
+        type=str,
+        default="database.db",
+        help="Path to database view."
+    )
+
+    args = parser.parse_args()
     # TODO: wrap text in table
 
     sg.theme("DarkTeal2")
 
-    database = Database("database.db")
+    database = Database(args.database)
     table = create_table(database)
 
     # main UI
