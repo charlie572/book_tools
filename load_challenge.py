@@ -61,7 +61,6 @@ def main():
             # get title
             lines = [line for line in link.text.split("\n") if line]
             book_title = lines[0]
-            print(book_title)
 
             # search for book
             book = Book(title=book_title)
