@@ -65,7 +65,7 @@ async def get_book(
         if price_p is None:
             return None, None
         price_text = price_p.text.split("£")[-1]
-        price = float(price_text)
+        price = float("".join(c for c in price_text if c.isnumeric() or c == "."))
 
         return response.url, price
 
