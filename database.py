@@ -40,6 +40,14 @@ class NotFound(Exception):
     pass
 
 
+def first(iterable, pred):
+    for item in iterable:
+        if pred(item):
+            return item
+
+    raise RuntimeError("None satisfy predicate.")
+
+
 class Database:
     def __init__(self, path: str):
         init = not os.path.exists(path)
@@ -161,7 +169,7 @@ class Database:
         challenge.id = self._cursor.lastrowid
 
     def add_book(self, book: Book):
-        if self.book_exists(book):
+        if self.get_book(book):
             return
 
         # insert book
@@ -176,7 +184,8 @@ class Database:
 
     def update_book(self, book: Book):
         # get book id and check if it exists
-        self.get_item(book, only_check_id=True)
+        if not self.get_book(book):
+            raise RuntimeError("Book doesn't exist")
 
         # update book
         self._cursor.execute(
@@ -200,9 +209,44 @@ class Database:
         self._cursor.execute(query, tuple(params))
         return [Book(*row) for row in self._cursor.fetchall()]
 
+    def get_book(self, book: Book, raise_if_not_found = False):
+        fields = ["isbn", "title", "id", "read", "tags_searched"]
+
+        # Query using book id. If not available, use isbn, etc.
+        query_params = ["id", "isbn", "title"]  # decreasing order of preference
+        try:
+            query_param = first(query_params, lambda param: getattr(book, param) is not None)
+        except RuntimeError:
+            raise RuntimeError("Book parameter doesn't contain any identifiers.")
+        query_param_value = getattr(book, query_param)
+
+        query = (
+            f"SELECT {', '.join(fields)}\n"
+            "FROM Book\n"
+            f"WHERE {query_param} = ?"
+        )
+
+        self._cursor.execute(query, (query_param_value,))
+        rows = self._cursor.fetchall()
+
+        if len(rows) == 0:
+            if raise_if_not_found:
+                raise NotFound("Item not found.")
+            else:
+                return False
+        if len(rows) > 1:
+            raise RuntimeError("Query satisfies more than one item.")
+
+        row, = rows
+        for field, value in zip(fields, row):
+            setattr(book, field, value)
+
+        return True
+
     def get_item(self, item, only_check_id = False):
         if isinstance(item, Book):
-            table_name = "Book"
+            return self.get_book(item)
+
         elif isinstance(item, LibrarySystem):
             table_name = "LibrarySystem"
         elif isinstance(item, Shop):
@@ -213,15 +257,13 @@ class Database:
             raise TypeError
 
         if only_check_id:
-            item_fields = ["id", "isbn"]
+            item_fields = ["id"]
         else:
             item_fields = [f.name for f in fields(item)]
 
         params_query = []
         params = []
         for field in item_fields:
-            if isinstance(item, Book) and field in ("read", "tags_searched"):
-                continue
             if not hasattr(item, field):
                 continue
 
@@ -350,7 +392,6 @@ class Database:
             (challenge.id, book.id),
         )
         if len(self._cursor.fetchall()) > 0:
-            print("Book already added.")
             return
 
         # add row
@@ -571,15 +612,6 @@ class Database:
         )
 
         return [Challenge(name, id_) for (id_, name) in self._cursor.fetchall()]
-
-    def book_exists(self, book: Book) -> bool:
-        self._cursor.execute(
-            """
-            SELECT isbn FROM Book WHERE isbn = ?
-            """,
-            (book.isbn,)
-        )
-        return len(self._cursor.fetchall()) > 0
 
     def challenge_exists(self, challenge: Challenge) -> bool:
         self._cursor.execute(

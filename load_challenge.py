@@ -43,12 +43,11 @@ def main():
         # get title
         lines = [line for line in link.text.split("\n") if line]
         book_title = lines[0]
+        book_title = "".join(c for c in book_title if c.isalnum() or c.isspace())  # the titles in the database don't have punctuation
 
         # search for book
         book = Book(title=book_title)
-        try:
-            database.get_item(book)
-        except NotFound:
+        if not database.get_book(book):
             continue
 
         # add to challenge

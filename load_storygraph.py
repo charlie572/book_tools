@@ -29,12 +29,12 @@ def main():
     reader = csv.DictReader(args.storygraph_export_file)
     for row in reader:
         book = Book(
-            row["ISBN/UID"],
+            row["ISBN/UID"] or None,
             row["Title"],
             read=row["Read Count"] != "0",
         )
 
-        if database.book_exists(book):
+        if database.get_book(book):
             database.update_book(book)
         else:
             database.add_book(book)
