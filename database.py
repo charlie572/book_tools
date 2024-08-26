@@ -1,8 +1,10 @@
 import os
 import sqlite3
+from copy import deepcopy
 from dataclasses import dataclass, fields
 from typing import Optional, List, Iterable, Tuple
 from xml.dom import NotFoundErr
+import re
 
 
 @dataclass
@@ -211,6 +213,7 @@ class Database:
 
     def get_book(self, book: Book, raise_if_not_found = False):
         fields = ["isbn", "title", "id", "read", "tags_searched"]
+        punctuation = ["'", '"', ".", ",", "/", ":"]
 
         # Query using book id. If not available, use isbn, etc.
         query_params = ["id", "isbn", "title"]  # decreasing order of preference
@@ -220,11 +223,13 @@ class Database:
             raise RuntimeError("Book parameter doesn't contain any identifiers.")
         query_param_value = getattr(book, query_param)
 
-        # Ignore punctuation by replacing it with wildcards
-        query_param_value = "".join(
-            (c if (c.isalnum() or c.isspace()) else "%")
-            for c in query_param_value
-        )
+        query_param_value_wildcards = query_param_value
+        if isinstance(query_param_value, str):
+            # Ignore punctuation by replacing it with wildcards
+            query_param_value_wildcards = "".join(
+                ("%" if (c in punctuation) else c)
+                for c in query_param_value
+            )
 
         query = (
             f"SELECT {', '.join(fields)}\n"
@@ -232,7 +237,7 @@ class Database:
             f"WHERE {query_param} LIKE ?"
         )
 
-        self._cursor.execute(query, (query_param_value,))
+        self._cursor.execute(query, (query_param_value_wildcards,))
         rows = self._cursor.fetchall()
 
         if len(rows) == 0:
@@ -241,7 +246,26 @@ class Database:
             else:
                 return False
 
-        row = rows[0]
+        # The punctuation check above doesn't always work, because the wildcards are equivalent to .* in regex. We must
+        # verify it with regular expressions.
+        if isinstance(query_param_value, str):
+            for row in rows:
+                _book = deepcopy(book)
+                for field, value in zip(fields, row):
+                    setattr(_book, field, value)
+
+                found_query_param = getattr(_book, query_param)
+                query_param_re = "".join(
+                    c + ("?" if c in punctuation else "")
+                    for c in re.escape(query_param_value)
+                )
+                if re.match(query_param_re, found_query_param):
+                    break
+            else:
+                return False
+        else:
+            row = rows[0]
+
         for field, value in zip(fields, row):
             setattr(book, field, value)
 
