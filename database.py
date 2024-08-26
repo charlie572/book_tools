@@ -2,6 +2,7 @@ import os
 import sqlite3
 from dataclasses import dataclass, fields
 from typing import Optional, List, Iterable, Tuple
+from xml.dom import NotFoundErr
 
 
 @dataclass
@@ -18,6 +19,10 @@ class LibrarySystem:
     name: Optional[str] = None
     id: Optional[int] = None
 
+@dataclass
+class Challenge:
+    name: Optional[str] = None
+    id: Optional[int] = None
 
 @dataclass
 class Shop:
@@ -29,6 +34,10 @@ class Shop:
 class Tag:
     name: Optional[str] = None
     id: Optional[int] = None
+
+
+class NotFound(Exception):
+    pass
 
 
 class Database:
@@ -70,12 +79,31 @@ class Database:
         )
         self._cursor.execute(
             """
+            CREATE TABLE Challenge (
+                id INTEGER PRIMARY KEY,
+                name TEXT
+            )
+            """
+        )
+        self._cursor.execute(
+            """
             CREATE TABLE LibraryBook (
                 id INTEGER PRIMARY KEY,
                 library INTEGER,
                 book INTEGER,
                 present BOOLEAN,
                 FOREIGN KEY (library) REFERENCES Library(id),
+                FOREIGN KEY (book) REFERENCES Book(id)
+            )
+            """
+        )
+        self._cursor.execute(
+            """
+            CREATE TABLE ChallengeBook (
+                id INTEGER PRIMARY KEY,
+                challenge INTEGER,
+                book INTEGER,
+                FOREIGN KEY (challenge) REFERENCES Challenge(id),
                 FOREIGN KEY (book) REFERENCES Book(id)
             )
             """
@@ -113,6 +141,24 @@ class Database:
             """
         )
         self._connection.commit()
+
+    def add_challenge(self, challenge: Challenge):
+        if self.challenge_exists(challenge):
+            # set challenge id
+            self.get_item(challenge)
+            return
+
+        # insert book
+        self._cursor.execute(
+            """
+            INSERT INTO Challenge (name)
+            VALUES (?)
+            """,
+            (challenge.name,)
+        )
+        self._connection.commit()
+
+        challenge.id = self._cursor.lastrowid
 
     def add_book(self, book: Book):
         if self.book_exists(book):
@@ -161,6 +207,8 @@ class Database:
             table_name = "LibrarySystem"
         elif isinstance(item, Shop):
             table_name = "Shop"
+        elif isinstance(item, Challenge):
+            table_name = "Challenge"
         else:
             raise TypeError
 
@@ -172,12 +220,15 @@ class Database:
         params_query = []
         params = []
         for field in item_fields:
+            if isinstance(item, Book) and field in ("read", "tags_searched"):
+                continue
             if not hasattr(item, field):
                 continue
 
             value = getattr(item, field)
             if value is None:
                 continue
+
 
             params_query.append(f"{field} = ?")
             params.append(value)
@@ -192,7 +243,7 @@ class Database:
         rows = self._cursor.fetchall()
 
         if len(rows) == 0:
-            raise RuntimeError("Item not found.")
+            raise NotFound("Item not found.")
         if len(rows) > 1:
             raise RuntimeError("Query satisfies more than one item.")
 
@@ -276,6 +327,39 @@ class Database:
             VALUES (?, ?, ?)
             """,
             (library.id, book.id, present),
+        )
+        self._connection.commit()
+
+    def add_book_to_challenge(
+        self,
+        book: Book,
+        challenge: Challenge,
+    ):
+        # get ids
+        if book.id is None:
+            self.get_item(book)
+        if challenge.id is None:
+            self.get_item(challenge)
+
+        # check if row already exists
+        self._cursor.execute(
+            """
+            SELECT * FROM ChallengeBook
+            WHERE challenge = ? AND book = ?
+            """,
+            (challenge.id, book.id),
+        )
+        if len(self._cursor.fetchall()) > 0:
+            print("Book already added.")
+            return
+
+        # add row
+        self._cursor.execute(
+            """
+            INSERT INTO ChallengeBook (challenge, book)
+            VALUES (?, ?)
+            """,
+            (challenge.id, book.id),
         )
         self._connection.commit()
 
@@ -471,12 +555,38 @@ class Database:
 
         return [tag_name for (tag_name,) in self._cursor.fetchall()]
 
+    def get_book_challenges(self, book: Book) -> Iterable[Challenge]:
+        if book.id is None:
+            self.get_item(book)
+
+        self._cursor.execute(
+            """
+            SELECT Challenge.id, Challenge.name
+            FROM Book
+            INNER JOIN ChallengeBook ON (Book.id = ChallengeBook.book)
+            INNER JOIN Challenge ON (ChallengeBook.challenge = Challenge.id)
+            WHERE Book.id = ?
+            """,
+            (book.id,),
+        )
+
+        return [Challenge(name, id_) for (id_, name) in self._cursor.fetchall()]
+
     def book_exists(self, book: Book) -> bool:
         self._cursor.execute(
             """
             SELECT isbn FROM Book WHERE isbn = ?
             """,
             (book.isbn,)
+        )
+        return len(self._cursor.fetchall()) > 0
+
+    def challenge_exists(self, challenge: Challenge) -> bool:
+        self._cursor.execute(
+            """
+            SELECT name FROM Challenge WHERE name = ?
+            """,
+            (challenge.name,)
         )
         return len(self._cursor.fetchall()) > 0
 

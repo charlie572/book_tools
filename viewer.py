@@ -79,6 +79,7 @@ def create_table(database: Database):
             book.title,
             "yes" if book.read else "no",
             ", ".join(database.get_book_tags(book)),
+            ", ".join(challenge.name for challenge in database.get_book_challenges(book)),
         ]
         for library in database.get_libraries():
             present = database.check_book_in_library(book, library)
@@ -106,7 +107,7 @@ def create_table(database: Database):
     # create table
     table = FilterTable(
         book_data,
-        headings=["Title", "Read", "Tags"] + library_names + shop_names,
+        headings=["Title", "Read", "Tags", "Challenges"] + library_names + shop_names,
         enable_click_events=True,
         size=(800, 600)
     )
@@ -116,8 +117,8 @@ def create_table(database: Database):
 
 def main():
     parser = argparse.ArgumentParser(
-        "load_from_txt",
-        description="Load storygraph data into the database."
+        "viewer",
+        description="View a database in a window."
     )
     parser.add_argument(
         "database",
