@@ -220,10 +220,16 @@ class Database:
             raise RuntimeError("Book parameter doesn't contain any identifiers.")
         query_param_value = getattr(book, query_param)
 
+        # Ignore punctuation by replacing it with wildcards
+        query_param_value = "".join(
+            (c if (c.isalnum() or c.isspace()) else "%")
+            for c in query_param_value
+        )
+
         query = (
             f"SELECT {', '.join(fields)}\n"
             "FROM Book\n"
-            f"WHERE {query_param} = ?"
+            f"WHERE {query_param} LIKE ?"
         )
 
         self._cursor.execute(query, (query_param_value,))
@@ -234,10 +240,8 @@ class Database:
                 raise NotFound("Item not found.")
             else:
                 return False
-        if len(rows) > 1:
-            raise RuntimeError("Query satisfies more than one item.")
 
-        row, = rows
+        row = rows[0]
         for field, value in zip(fields, row):
             setattr(book, field, value)
 
