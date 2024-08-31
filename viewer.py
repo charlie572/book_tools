@@ -41,7 +41,7 @@ class FilterTable(sg.Table):
                 if filtered_value is None:
                     continue
 
-                if column == "Tags":
+                if column in ("Tags", "Authors"):
                     # check all filter tags are present
                     row_tags = value.split(", ")
                     filter_tags = filtered_value.split(", ")
@@ -80,6 +80,7 @@ def create_table(database: Database):
             "yes" if book.read else "no",
             ", ".join(database.get_book_tags(book)),
             ", ".join(challenge.name for challenge in database.get_book_challenges(book)),
+            ", ".join(author.name for author in book.authors)
         ]
         for library in database.get_libraries():
             present = database.check_book_in_library(book, library)
@@ -108,7 +109,7 @@ def create_table(database: Database):
     # create table
     table = FilterTable(
         book_data,
-        headings=["Title", "Read", "Tags", "Challenges"] + library_names + shop_names,
+        headings=["Title", "Read", "Tags", "Challenges", "Authors"] + library_names + shop_names,
         enable_click_events=True,
         size=(800, 600)
     )

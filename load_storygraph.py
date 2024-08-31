@@ -1,7 +1,7 @@
 import argparse
 import csv
 
-from database import Database, Book
+from database import Database, Book, Author
 
 
 def main():
@@ -32,6 +32,7 @@ def main():
             row["ISBN/UID"] or None,
             row["Title"],
             read=row["Read Count"] != "0",
+            authors=[Author(author.strip()) for author in row["Authors"].split(",")],
         )
 
         if database.get_book(book):

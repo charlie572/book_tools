@@ -1,10 +1,14 @@
 import os
 import sqlite3
 from copy import deepcopy
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 from typing import Optional, List, Iterable, Tuple
-from xml.dom import NotFoundErr
 import re
+
+@dataclass
+class Author:
+    name: Optional[str] = None
+    id: Optional[int] = None
 
 
 @dataclass
@@ -14,6 +18,7 @@ class Book:
     id: Optional[int] = None
     read: Optional[bool] = False
     tags_searched: Optional[bool] = False
+    authors: List[Author] = field(default_factory=list)
 
 
 @dataclass
@@ -62,12 +67,31 @@ class Database:
     def _initialise_database(self):
         self._cursor.execute(
             """
+            CREATE TABLE Author (
+                id INTEGER PRIMARY KEY,
+                name TEXT
+            )
+            """
+        )
+        self._cursor.execute(
+            """
             CREATE TABLE Book (
                 id INTEGER PRIMARY KEY,
                 isbn TEXT,
                 title TEXT,
                 read BOOLEAN,
                 tags_searched BOOLEAN
+            )
+            """
+        )
+        self._cursor.execute(
+            """
+            CREATE TABLE BookAuthor (
+                id INTEGER PRIMARY KEY,
+                book INTEGER,
+                author INTEGER,
+                FOREIGN KEY (book) REFERENCES Book(id),
+                FOREIGN KEY (author) REFERENCES Author(id)
             )
             """
         )
@@ -174,6 +198,11 @@ class Database:
         if self.get_book(book):
             return
 
+        # insert authors
+        for author in book.authors:
+            if not self.get_author(author):
+                self.add_author(author)
+
         # insert book
         self._cursor.execute(
             """
@@ -182,6 +211,37 @@ class Database:
             """,
             (book.isbn, book.title, book.read, book.tags_searched)
         )
+
+        book.id = self._cursor.lastrowid
+
+        # relate book to authors
+        for author in book.authors:
+            self._cursor.execute(
+                """
+                INSERT INTO BookAuthor (book, author)
+                VALUES (?, ?)
+                """,
+                (book.id, author.id),
+            )
+
+        self._connection.commit()
+
+
+    def add_author(self, author: Author):
+        if self.get_author(author):
+            return
+
+        # insert author
+        self._cursor.execute(
+            """
+            INSERT INTO Author (name)
+            VALUES (?)
+            """,
+            (author.name,)
+        )
+
+        author.id = self._cursor.lastrowid
+
         self._connection.commit()
 
     def update_book(self, book: Book):
@@ -209,7 +269,25 @@ class Database:
             params.append(read)
 
         self._cursor.execute(query, tuple(params))
-        return [Book(*row) for row in self._cursor.fetchall()]
+        books = [Book(*row) for row in self._cursor.fetchall()]
+
+        # get authors
+        for book in books:
+            self._cursor.execute(
+                """
+                SELECT Author.name, Author.id
+                FROM BookAuthor
+                INNER JOIN Author ON BookAuthor.author = Author.id
+                WHERE BookAuthor.book = ?
+                """,
+                (book.id,),
+            )
+
+            book.authors.clear()
+            for row in self._cursor.fetchall():
+                book.authors.append(Author(*row))
+
+        return books
 
     def get_book(self, book: Book, raise_if_not_found = False):
         fields = ["isbn", "title", "id", "read", "tags_searched"]
@@ -268,6 +346,42 @@ class Database:
 
         for field, value in zip(fields, row):
             setattr(book, field, value)
+
+        # get authors
+        self._cursor.execute(
+            """
+            SELECT Author.name, Author.id
+            FROM BookAuthor
+            INNER JOIN Author ON BookAuthor.author = Author.id
+            WHERE BookAuthor.book = ?
+            """,
+            (book.id,),
+        )
+
+        book.authors.clear()
+        for row in self._cursor.fetchall():
+            book.authors.append(Author(*row))
+
+        return True
+
+    def get_author(self, author: Author, raise_if_not_found = False):
+        self._cursor.execute(
+            """
+            SELECT name, id
+            FROM Author
+            WHERE name = ?
+            """,
+            (author.name,)
+        )
+        rows = self._cursor.fetchall()
+
+        if len(rows) == 0:
+            if raise_if_not_found:
+                raise NotFound("Item not found.")
+            else:
+                return False
+
+        author.id = rows[0][0]
 
         return True
 
