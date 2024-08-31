@@ -34,17 +34,38 @@ async def get_book(
     search results or the book is returned, and
     the price. Else, (None, None) is returned.
     """
-    search_term = book.title.lower().strip()
-    if search_term.startswith("the "):
-        search_term = search_term[4:]
+    url = "https://www.abebooks.co.uk/servlet/SearchResults"
 
-    url = f"https://www.abebooks.co.uk/servlet/SearchResults"
-    params = {
-        "cm_sp": "SearchF-_-home-_-Results",
-        "ds": 20,
-        "kn": search_term,
-        "sts": "t",
-    }
+    if len(book.authors) == 0:
+        # search without author
+        search_term = book.title.lower().strip()
+        if search_term.startswith("the "):
+            search_term = search_term[4:]
+
+        params = {
+            "cm_sp": "SearchF-_-home-_-Results",
+            "ds": 20,
+            "kn": search_term,
+            "sts": "t",
+        }
+    else:
+        # search with author
+        params = {
+            "an": book.authors[0].name,
+            "bi": 0,
+            "bx": "off",
+            "cm_sp": "SearchF-_-Advs-_-Result",
+            "ds": 30,
+            "kn": book.title,
+            "prc": "GBP",
+            "recentlyadded": "all",
+            "rgn": "ww",
+            "rollup": "on",
+            "sortby": 17,
+            "xdesc": "off",
+            "xpod": "off",
+        }
+
     async with session.get(url=url, params=params) as response:
         content = await response.read()
 
