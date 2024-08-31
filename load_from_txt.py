@@ -41,7 +41,7 @@ def main():
             read=False,
         )
 
-        if database.book_exists(book):
+        if database.get_book(book):
             database.update_book(book)
         else:
             database.add_book(book)
