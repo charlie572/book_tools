@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os
+import re
 from typing import Optional, Tuple
 
 import aiohttp
@@ -87,6 +88,14 @@ async def get_book(
             return None, None
         price_text = price_p.text.split("£")[-1]
         price = float("".join(c for c in price_text if c.isnumeric() or c == "."))
+
+        # Find shipping.
+        shipping_span = book_li.find("span", {"class": "item-shipping"})
+        if shipping_span is not None:
+            shipping_text = shipping_span.text
+            match = re.match(r"£\s*(\d+(\.\d+)?)\s*Shipping", shipping_text)
+            if match is not None:
+                price += float(match.group(1))
 
         return response.url, price
 
