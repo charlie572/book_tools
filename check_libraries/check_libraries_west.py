@@ -38,7 +38,7 @@ async def get_book(
     if search_term.startswith("the "):
         search_term = search_term[4:]
 
-    url = f"https://www.librarieswest.org.uk/search?"
+    url = f"https://www.librarieswest.org.uk/search"
     params = {
         "p_pid": "searchResult_WAR_arenaportlet",
         "p_p_lifecycle": "1",

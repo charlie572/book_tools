@@ -123,10 +123,12 @@ def main():
         description="View a database in a window."
     )
     parser.add_argument(
-        "database",
+        "-d",
+        "--database",
         type=str,
         default="database.db",
-        help="Path to database view."
+        help="Path to database view.",
+        required=False,
     )
 
     args = parser.parse_args()

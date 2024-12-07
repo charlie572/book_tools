@@ -13,21 +13,9 @@ from database import Book, Database, LibrarySystem
 library = LibrarySystem("Nottingham City Libraries")
 
 
-def find_book_in_search_results(results_div, book_title):
-    results_div = results_div.find(
-        "div",
-        {
-            "class": "results_every_four"
-        }
-    )
-    for book_div in results_div.findChildren("div", recursive=False):
-        title_div = book_div.find("div", {"class": "displayDetailLink"})
-        title = title_div.text
-        if check_titles(title, book_title):
-            return title_div
-
-    return None
-
+# TODO: merge this script with the libraries west script. They now use the same system.
+#       Maybe bring the old code for Nottingham libraries back, since that system might
+#       be used somewhere else.
 
 async def process_book(
     book: Book,
@@ -54,30 +42,28 @@ async def get_book(
     if search_term.startswith("the "):
         search_term = search_term[4:]
 
-    url = f"https://emlib.ent.sirsidynix.net.uk/client/en_GB/nottcity/search/results"
+    url = f"https://catalogue.nottinghamcitylibraries.co.uk/search"
     params = {
-        "qu": search_term
+        "p_p_id": "searchResult_WAR_arenaportlet",
+        "p_p_lifecycle": "1",
+        "p_p_state": "normal",
+        "p_r_p_arena_urn:arena_facet_queries": "",
+        "p_r_p_arena_urn:arena_search_type": "solr",
+        "p_r_p_arena_urn:arena_sort_advice": "field=Relevance&direction=Descending",
+        "p_r_p_arena_urn:arena_search_query": search_term,
     }
     async with session.get(url=url, params=params) as response:
         content = await response.read()
 
         soup = BeautifulSoup(content, "html.parser")
 
-        # If there is only one search result, we are redirected to the page for
-        # the book, instead of a search results page. Check the page title to
-        # see if this has happened.
-        title = soup.find("title").text
-        if not title.startswith("Search Results"):
-            return response.url
-
-        # Find the div containing the search results.
-        results_div = soup.find("div", {"id": "results_wrapper"})
-        if results_div is None:
-            return None
-
-        # Check if the book is in the search results.
-        if find_book_in_search_results(results_div, book.title):
-            return response.url
+        book_divs = soup.find_all("div", {"class": "arena-record"})
+        for book_div in book_divs:
+            title_div = book_div.find("div", {"class": "arena-record-title"})
+            title = title_div.text.split("/")[0].strip()
+            if check_titles(title, book.title):
+                link = title_div.contents[1]
+                return link.attrs["href"]
 
         return None
 
