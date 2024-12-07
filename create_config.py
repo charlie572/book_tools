@@ -7,17 +7,16 @@ def main():
     parser = ConfigParser()
 
     parser.add_section("firefox")
+
+    # This is the path to the firefox executable. It has to be in /opt. You cannot
+    # have firefox installed with snap at the same time.
     parser.set("firefox", "executable", "")
+
+    # you can find this path in the "about:profiles" page in firefox
     parser.set("firefox", "profile", "")
 
     with open("config.ini", "w") as f:
         parser.write(f)
-
-    with open("state.json", "w") as f:
-        json.dump(
-            {"next_backup": datetime.now().timestamp(), "state": "idle"},
-            f,
-        )
 
 
 if __name__ == "__main__":

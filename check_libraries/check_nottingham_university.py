@@ -2,6 +2,7 @@ import argparse
 import os
 from configparser import ConfigParser
 from multiprocessing.pool import ThreadPool
+from sys import executable
 from threading import current_thread
 from typing import Optional, Dict
 from urllib.parse import urlencode, quote
@@ -129,9 +130,7 @@ def main():
 
     # webdriver options
     options = Options()
-    options.binary = FirefoxBinary(
-        config_parser.get("firefox", "executable")
-    )
+    options.binary_location = config_parser.get("firefox", "executable")
     options.profile = FirefoxProfile(
         config_parser.get("firefox", "profile")
     )
